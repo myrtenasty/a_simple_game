@@ -1,0 +1,1 @@
+This is a simple RTS game based on processing 2.2.1
