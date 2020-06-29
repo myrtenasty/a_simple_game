@@ -1,5 +1,6 @@
-int Length = 1000;
-int Max_Human = 80;
+int Length = 1280;
+int Width = 720;
+int Max_Human = 54;
 int init_population = Max_Human;
 String season_name = "Spring";
 int season = 0; // 0 for spring, 1 for summer, 2 for autumn, 3 for winter
@@ -8,411 +9,172 @@ int dayCount = 0;
 int year = 0;
 int days_of_year = 365;
 int food_prob = 20; // initial probablity for food generationg
-int daily_exp = 20; 
+int daily_exp = 8; 
 int population = Max_Human;
 int teamA = 0;
 int teamB = 0;
+int squadCount = 0;
 int imgCount = 1;
 int battleCount = 0;
 int selectX;
 int selectY;
+int selectX2;
+int selectY2;
+PVector GoTarget;
 boolean selectOn = false;
-boolean pause = false;
-boolean selected = false;
+boolean pause = true;
+boolean gameBegin = false;
 boolean selectTarget = false;
 int commandStep = 0;
+int SBS = 14;
+int box1[] = new int[9];
+int box2[] = new int[9];
+boolean newAgent = false;
+int[] rule = {0, 0, 0, 0, 0, 1, 1, 2};
 
-int[][] MAP = new int[Length][Length]; 
-int[][] duelMAP = new int[Length][Length];
+boolean win = false;
+boolean lose = false;
+
+
+int[][] MAP = new int[Length][Width]; 
+int[][] duelMAP = new int[Length][Width];
 
 Human_class[] Human = new Human_class[Max_Human];
+base_class[] base = new base_class[2];
 
 void setup(){
-  size(Length, Length);
+  size(Length, Width);
   background(0);
   frameRate(30);
   
   PFont font = createFont("arial",20);
   textFont(font);
+  
+  for(int i=0; i< Length; i++){
+    for(int j=0; j< Width; j++){
+      MAP[i][j] = 0;
+    }
+  }
+  
+  for(int m = 0; m < 2; m++){
+    int p1x;
+    int p1y;
+    int p2x;
+    int p2y;
+    int t;
+    if(m == 0){
+      p1x = width/2-3*SBS;
+      p1y = 2*SBS;
+      p2x = width/2+3*SBS;
+      p2y = 8*SBS;
+      t = 0;
+    }
+    else{
+      p1x = width/2-3*SBS;
+      p1y = height-8*SBS;
+      p2x = width/2+3*SBS;
+      p2y = height-2*SBS;
+      t = 1;
+    }
+    PVector p1 = new PVector((float)p1x, (float)p1y);
+    PVector p2 = new PVector((float)p2x, (float)p2y);
+    base[m] = new base_class(p1, p2, t);
+    for(int mm = p1x; mm < p2x; mm++){
+      for(int nn = p1y; nn < p2y; nn++){
+        MAP[mm][nn] = 3;
+      }
+    }
+  }
+  
+  for(int i=0; i < Max_Human; i++){
+     int k1 = 1; //生きている人間の状態を1、死んでいる場合は 0
+     int k2 = 0; //登場する初期 x座標
+     int k3 = 0; //登場する初期 y座標
+     int no = i/9;
+     switch(no){
+       case 0:
+       k2 = width/10-2*SBS+(i%9)%3*2*SBS;
+       k3 = height/10+(i%9)/3*2*SBS;
+       break;
+       case 1:
+       k2 = width/2-2*SBS+(i%9)%3*2*SBS;
+       k3 = height/5+(i%9)/3*2*SBS;
+       break;
+       case 2:
+       k2 = 9*width/10-2*SBS+(i%9)%3*2*SBS;
+       k3 = height/10+(i%9)/3*2*SBS;
+       break;
+       case 3:
+       k2 = width/10-2*SBS+(i%9)%3*2*SBS;
+       k3 = 9*height/10-5*SBS+(i%9)/3*2*SBS;
+       break;
+       case 4:
+       k2 = width/2-2*SBS+(i%9)%3*2*SBS;
+       k3 = 4*height/5-5*SBS+(i%9)/3*2*SBS;
+       break;
+       case 5:
+       k2 = 9*width/10-2*SBS+(i%9)%3*2*SBS;
+       k3 = 9*height/10-5*SBS+(i%9)/3*2*SBS;
+       break;
+     }
+     PVector pos = new PVector((float)k2, (float)k3);
+     PVector v = new PVector(0, 0);
+     int k5 = int(random(5)); //人間の体内時計を0～4の間でセット
+     int k7 = int(i >= 27);
+     int c = (i/9)%3;
+     MAP[int(k2)][int(k3)] = 2;
+     Human[i] = new Human_class(i,k1,pos,v,k5,k7,c);
+     if(i%9 == 0){squadCount++;}
+     Human[i].squad = squadCount;
+  }
+  obstacle();
+  
 }
 
 void draw(){
-  if(!pause){
     makeground();
+    base[1].base1();
+    base[0].base2();
+    obstacle();
+    base[1].generate();
+    base[0].generate();
+    base[0].hpBar();
+    base[1].hpBar();
+    if(frameCount%300==299){base[0].lv++;base[1].lv++;}
     selectionRect();
     attackCommand();
-  }
-}
-
-
-
-class Human_class
-{
-
-  int xpos; //x座標
-  int ypos; //y座標
-  int type; //人間の状態
-  int direction; //人間の動作方向
-  int timer; //体内時計
-  int hp; //体力
-  int vel;
-  int lv;
-  int exp;
-  int atk;
-  int def;
-  int lvup_exp;
-  int bore_cd;
-  int gender;
-  int max_hp;
-  int team;
-  boolean combatReady;
-  boolean isAttacking;
     
-  Human_class(int c, int xp, int yp, int dirt, int t, int h, int tm) {
-    xpos = xp;
-    ypos = yp;
-    type = c;
-    direction = dirt;
-    timer = t;
-    hp = h;
-    vel = 3;
-    lv = 1;
-    exp = 0;
-    atk = 100;
-    def = 80;
-    lvup_exp = 500;
-    bore_cd = 310;
-    gender = int(random(100)>50);
-    max_hp = 1500;
-    team = tm;
-    combatReady = false;
-    isAttacking = true;
-  }
-
-
-
- //人間を描画する部分
-  void draw () {
- 
-    smooth();
-    noStroke();
-    
-    //体力によって色を変更しましょう
-    
-    
-    fill(0, 255, 0); //健康な状態
-    
-    if(hp < 300){
-      fill(255,255,0); //体力が落ち始めた状態
-      vel = 2;
-    }
-  
-    if(hp < 10){
-       fill(255,0,0); //危険な状態
-       vel = 1;
-    }   
-       
-    //アニメーションは全部で5種類準備
-    //体内時間を5で割って、その余りに応じて
-    //表示するアニメを決定
-    
-    int time = timer % 5;
-    switch(time){
-      
-      case 0:
-        ellipse(xpos,ypos,6,6);
-        fillColor_tm(team);
-        rect(xpos-3,ypos+3,6,5); //胴体
-        fillColor_c(hp);
-        rect(xpos-3,ypos+8,3,5); //左足
-        rect(xpos-4,ypos+3,2,5); //左腕
-        rect(xpos+2,ypos+3,2,5); //右腕
-    
-        break;
-      case 1:
-        ellipse(xpos,ypos,6,6);
-        fillColor_tm(team);
-        rect(xpos-3,ypos+3,6,5);
-        fillColor_c(hp);
-        rect(xpos-3,ypos+8,3,4);
-        rect(xpos,ypos+8,3,1);        
-        break;
-       case 2:
-        ellipse(xpos,ypos,6,6);
-        fillColor_tm(team);
-        rect(xpos-3,ypos+3,6,5);
-        fillColor_c(hp);
-        rect(xpos-3,ypos+8,3,3);
-        rect(xpos,ypos+8,3,3);
-        break;
-        case 3:
-        ellipse(xpos,ypos,6,6);
-        fillColor_tm(team);
-        rect(xpos-3,ypos+3,6,5);
-        fillColor_c(hp);
-        rect(xpos-3,ypos+8,3,1);
-        rect(xpos,ypos+8,3,4);
-        break;
-        case 4:
-        
-        //5枚目
-        ellipse(xpos,ypos,6,6);
-        fillColor_tm(team);
-        rect(xpos-3,ypos+3,6,5);
-        fillColor_c(hp);
-        rect(xpos,ypos+8,3,5);
-        rect(xpos-4,ypos+3,2,5); 
-        rect(xpos+2,ypos+3,2,5); 
-        break;
-        
-    }
-  }
-
-
-//人間を動かす部分
-  void drive () {
-    
-    //確率5%で動く方向を変更
-    if(random(100) < 5){
-      //5種類の動きをランダムにセット
-      direction = int(random(5));
-    }
-    
-    //動く方向4方向 + 何も動かない
-    //合計5種類を準備
-    
-    switch(direction){
-      case 0:
-        break; //何も動かず
-    
-      case 1:
-          MAP[xpos][ypos] = 0;
-          xpos = (xpos + vel + width) % width; //右に動かす
-          break;
-          
-      case 2:
-          MAP[xpos][ypos] = 0;
-          xpos = (xpos - vel + width) % width; //左に動かす
-          break;
-          
-      case 3:
-          MAP[xpos][ypos] = 0;
-          ypos = (ypos + vel + height) % height; //下に動かす
-          break;
-      
-     case 4:
-          MAP[xpos][ypos] = 0;
-          ypos = (ypos - vel + height) % height; //上に動かす
-          break;
-    }
-     
-   
-   //自分の移動先に存在を代入
-     MAP[xpos][ypos] = type;  
-    
-  }
-  
-  
-  //衝突の判定
-  void coll() {
-    
-    //自分の周囲 10x10 の範囲を探索して、他人がいたら避けるようにする
-    if(!combatReady){
-    for(int i = -10; i < 10; i++){
-      for(int j = -10; j < 10; j++){
-        if (MAP[(xpos+i+width) % width][(ypos+j+height) % height] == 1){
-          
-          MAP[xpos][ypos] = 0;
-          
-          //相手から2画素分逃げるようにする
-          if(i < 0){
-            xpos = (xpos + 2 + width) % width; 
-          }
-          if(i > 0){
-            xpos = (xpos - 2 + width) % width;
-          }
-          
-          //相手から2画素分逃げるようにする
-          if(j < 0){
-            ypos = (ypos + 2 + height) % height;
-          }
-          if(j > 0){
-            ypos = (ypos - 2 + height) % height;
-          }
-          
-          MAP[xpos][ypos] = type; 
-          
-       
+    for(int j=0; j < Max_Human; j++){
+      if(Human[j].type == 1){
+        Human[j].draw();
+      if(!pause){
+//      if(Human[j].selected && commandStep == 3 && Human[j].type == 1){
+        Human[j].duel();
+        if(!Human[j].isAttacking){Human[j].attackBase(MAP);}
+        Human[j].protectOrAttack();
+        Human[j].drive();
+        Human[j].exp+=daily_exp;
+        if (Human[j].exp>=Human[j].lvup_exp){
+          Human[j].lv += 1;
+          if(Human[j].lv>=5){Human[j].vel_max = 4*int(Human[j].career==0)+5*int(Human[j].career==1)+3*int(Human[j].career==2);}
+          Human[j].atk = Human[j].atk + Human[j].lv*(10+5*Human[j].career);
+          Human[j].def = Human[j].def + Human[j].lv*(10-Human[j].career);
+          Human[j].def_c =Human[j].def_c+min(Human[j].lv, 10);
+          Human[j].lvup_exp = Human[j].lvup_exp + Human[j].lv*30;
+          Human[j].max_hp =Human[j].max_hp+Human[j].lv*(75*int(Human[j].career==0)+25*int(Human[j].career==1)+50*int(Human[j].career==2));
+          Human[j].hp = min(Human[j].hp+200, Human[j].max_hp);
+          Human[j].exp = 0;
         }
+//        println("dist=of "+j+"is "+Human[j].distToObs);
+//        println(selectX + " " + selectY + " " + selectX2 + " " + selectY2);
+//        println("command step is "+commandStep);
       }
     }
     }
-    else{
-      for(int i = -10; i < 10; i++){
-      for(int j = -10; j < 10; j++){
-        if (MAP[(xpos+i+width) % width][(ypos+j+height) % height] == 1){
-          
-          MAP[xpos][ypos] = 0;
-          
-          //相手から2画素分逃げるようにする
-          if(i < 0){
-            xpos = (xpos + 1 + width) % width; 
-          }
-          if(i > 0){
-            xpos = (xpos - 1 + width) % width;
-          }
-          
-          //相手から2画素分逃げるようにする
-          if(j < 0){
-            ypos = (ypos + 1 + height) % height;
-          }
-          if(j > 0){
-            ypos = (ypos - 1 + height) % height;
-          }
-          
-          MAP[xpos][ypos] = type; 
-          
-       
-        }
-      }
-    }
-    }
-  }
-  
-  
-  //食べ物の獲得
-  
-  void eat(){
-    
-    int action = 0;
-    combatReady = false;
-    
-    for(int r = 0; r < 100; r++){
-      for(int s = 0; s < 360; s=s+10){
-          
-      int i = int(r * cos(radians(s)));
-      int j = int(r * sin(radians(s)));
-          
-      if ((MAP[(xpos+i+width) % width][(ypos+j+height) % height] == 2)){       
-        
-            MAP[xpos][ypos] = 0;
-            combatReady = true;
-             
-            if((i > 0)&&(action==0)){
-              direction = 1;
-              xpos = (xpos + 1 + width) % width; //右に動かす
-              action = 1;
-            }
-            
-            if((i < 0)&&(action==0)){
-               direction = 2;
-               xpos = (xpos - 1 + width) % width; //左に動かす
-               action = 1;
-            }
-          
-            if((j > 0)&&(action==0)){
-              direction = 3;
-              ypos = (ypos + 1 + height) % height; //下に動かす
-              action = 1;
-            }
-            if((j < 0)&&(action==0)){
-              direction = 4;
-              ypos = (ypos - 1 + height) % height; //上に動かす
-              action = 1;
-            }       
-      }
-      if(action == 1)
-       break;
-      }
-    }
-    
-      //もし食料のところへたどり着いたら、
-            //エネルギーが回復
-            if((MAP[xpos][ypos] == 2)){
-              //println(lv+" "+exp+" "+vel);
-              hp = min(hp + 500, max_hp);
-              exp += 500;
-              if (exp >= lvup_exp){
-                  lv++;atk+=20;def+=15;max_hp += 50;hp = min(hp+max_hp/5, max_hp); // only when eating or batlle, hp recovers after level up.
-                  if (lv >=5 && lv < 20){vel = 4;}
-                  else if (lv >= 20){vel = 5;}
-                  //if(j == 1){println(Human[j].lvup_exp);}
-                  exp = 0;
-                  lvup_exp = 400 + lv * 100;
-              }
-              //println("after eating: "+lv+" "+exp+" "+vel);
-              
-            }
-            
-            MAP[xpos][ypos] = 1;
-  }
-  
-  void bore(){
-    if(lv>5 && hp > 1000 && random(100)<1 && bore_cd == 0 && gender == 1){
-      int k1 = 1; //生きている人間の状態を1、死んでいる場合は 0
-      int k2 = (xpos+10 + width)%width; //登場する初期 x座標
-      int k3 = ypos; //登場する初期 y座標
-      int k4 = int(random(5)); //人間の動作方向をランダムにセット
-      int k5 = int(random(5)); //人間の体内時計を0～4の間でセット
-      int k6 = 1000 + int(random(200)); //200~400の範囲で体力をセット
-      int k7;
-      int betray_prob = int(min(100 * (float)population/ (6*(float)init_population), 100));
-      //println(population+" "+(6*init_population)+" "+(100 * (float)population/ (6*(float)init_population))+" "+betray_prob);
-      int betray = int(random(100)<betray_prob);
-      k7 = betray*(1-team) + (1-betray)*team;
-      //println(k7);
-      Human_class[] temp_human = new Human_class[Max_Human+1];
-      for (int i = 0; i < Max_Human; i++){
-        temp_human[i] = Human[i];
-      }
-      temp_human[Max_Human] = new Human_class(k1,k2,k3,k4,k5,k6,k7);
-      Human = new Human_class[Max_Human+1];
-      for (int j = 0; j < Max_Human + 1; j++){
-        Human[j] = temp_human[j];
-      }
-      Max_Human++;
-      fill(5, 255, 255);
-      ellipse(k2, k3, 15, 15);
-      //println(lv+" "+bore_cd);
-      bore_cd = 300;
-    }
-  }
-  
-  void duel(){
-    for(int i = -10; i < 10; i++){
-      for(int j = -10; j < 10; j++){
-        if (MAP[(xpos+i+width) % width][(ypos+j+height) % height] == 1){
-          //searching hostile agents around
-          for(int m = 0; m < Max_Human; m++){
-//            if(abs(Human[m].xpos-((xpos+i+width) % width))<=5 && abs(Human[m].ypos-((ypos+j+height) % height))<=5 && Human[m].combatReady && Human[m].isAttacking && Human[m].team!=team){
-            if(abs(Human[m].xpos-((xpos+i+width) % width))==0 && abs(Human[m].ypos-((ypos+j+height) % height))==0 && Human[m].combatReady && Human[m].isAttacking && Human[m].team!=team){
-              // injury settlment
-              duelMAP[xpos][ypos] = 1;
-              hp = hp - (max(5*(Human[m].atk-def), 100));
-              if(hp<0){
-                type = 0;  //もし体力が0になったら、状態を死に変更
-                MAP[xpos][ypos] = 0;
-                //println(Human[m].exp);
-                Human[m].exp += lv*100;
-                if (Human[m].exp >= Human[m].lvup_exp){
-                  Human[m].lv++; Human[m].atk+=20; Human[m].def+=15; Human[m].max_hp+=50; Human[m].hp+=500;
-                  if (Human[m].lv >=5 && Human[m].lv < 20){Human[m].vel = 4;}
-                  else if (Human[m].lv >= 20){Human[m].vel = 5;}
-                  //if(j == 1){println(Human[j].lvup_exp);}
-                  Human[m].exp = 0;
-                  Human[m].lvup_exp = 400 + Human[m].lv * 100;
-                }
-                //println(Human[m].exp);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  
-  
+//    println("type of end is"+Human[Max_Human-1].type);
+//    println("hp is "+Human[53].hp);
+   winOrLose();
+   gameStart();
 }
 
 void makeground(){
@@ -440,43 +202,55 @@ void fillColor_c(int hp){
     }
 }
 
-void mousePressed() {
-  commandStep = commandStep%3;
-  switch(commandStep){
-    case 0:
-       println(1);
-       selectOn = true;
-       selectX = mouseX;
-       selectY = mouseY;
-       commandStep++;
-       break;
-    case 1:
-       println(2);
-       selectOn = false;
-       selectTarget = true;
-       commandStep++;
-       break;
-    case 2:
-       println(3);
-       selectTarget = false;
-       commandStep++;
-       break;
+void obstacle(){
+  noStroke();
+  fill(160,64,0);
+  rect(width/5, height/4, width/5, height/2);
+  rect(3*width/5, height/4 , width/5, height/2);
+  for(int i = width/5; i <= 2*width/5; i++){
+    for(int j = height/4; j <= 3*height/4; j++){
+      MAP[i][j] = 1;
+    }
+  }
+  for(int i = 3*width/5; i <= 4*width/5; i++){
+    for(int j = height/4; j <= 3*height/4; j++){
+      MAP[i][j] = 1;
+    }
+  }
+//  println("obs:"+MAP[width/2][100]);
+}
+
+void winOrLose(){
+  if((base[1].hp>0 && base[0].hp<=0)||win){
+    win = true;
+    fill(52, 152, 219);
+    rect(0,0,width,height); 
+    textSize(50);
+    fill(255);
+    text("You Win!", width/2-100, height/2-25);
+  }
+  else if((base[0].hp>0 && base[1].hp<=0)||lose){
+    lose = true;
+    fill(192, 57, 43);
+    rect(0,0,width,height);
+    textSize(50);
+    fill(255);
+    text("You Lose", width/2-100, height/2-25);
   }
 }
 
-void selectionRect(){
-  if (selectOn){
-    noFill();
-    stroke(255, 0, 0);
-    rect(selectX, selectY, mouseX - selectX, mouseY - selectY);
- }
+void keyPressed(){
+  pause = false;
+  gameBegin = true;
 }
 
-void attackCommand(){
-  if (selectTarget){
-    noFill();
-    stroke(255, 0, 0);
-    line(mouseX, mouseY-10, mouseX, mouseY+10);
-    line(mouseX-10, mouseY, mouseX+10, mouseY);
+void gameStart(){
+  if(!gameBegin){
+    fill(130, 224, 170 );
+    rect(0,0,width,height);
+    textSize(30);
+    fill(255);
+    text("Press any key to start", width/2-150, height/2-25);
   }
 }
+
