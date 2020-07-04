@@ -161,10 +161,10 @@ void selectBox() {
     PVector cha = chase();
     PVector flac = new PVector(random(-0.3, 0.3), random(-0.3, 0.3));
     if (distToObs >= 10){
-      sep.mult(1.5);
+      sep.mult(2.2);
       ali.mult(1.0);
-      tar.mult(1.5);
-      obs.mult(3.2);
+      tar.mult(2.0);
+      obs.mult(3.0);
       cha.mult(0.8);
       flac.mult(0.1);
 //      if(selected){println("sep is "+sep.mag()+" ali is "+ali.mag()+" tar is "+tar.mag());}

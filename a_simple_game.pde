@@ -140,7 +140,7 @@ void draw(){
     base[0].generate();
     base[0].hpBar();
     base[1].hpBar();
-    if(frameCount%300==299){base[0].lv++;base[1].lv++;}
+    if(frameCount%300==299&&gameBegin){base[0].lv++;base[1].lv++;base[0].hp+=base[0].lv*100;base[1].hp+=base[1].lv*100;}
     selectionRect();
     attackCommand();
     
